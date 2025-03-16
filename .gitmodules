@@ -1,0 +1,9 @@
+[submodule "module/path/to/subdir"]
+	path = module/path/to/subdir
+	url = https://github.com/graspnet/graspnet-baseline.git
+[submodule "module/graspnet-baseline"]
+	path = module/graspnet-baseline
+	url = https://github.com/graspnet/graspnet-baseline.git
+[submodule "module/graspnetAPI"]
+	path = module/graspnetAPI
+	url = https://github.com/graspnet/graspnetAPI.git
