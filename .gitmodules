@@ -7,3 +7,6 @@
 [submodule "module/graspnetAPI"]
 	path = module/graspnetAPI
 	url = https://github.com/graspnet/graspnetAPI.git
+[submodule "module/graspnet_baseline"]
+	path = module/graspnet_baseline
+	url = https://github.com/graspnet/graspnet-baseline.git

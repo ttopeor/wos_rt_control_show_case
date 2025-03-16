@@ -5,7 +5,7 @@ __pycache__/
 .python-version
 # C extensions
 *.so
-
+model/
 # Distribution / packaging
 .Python
 build/

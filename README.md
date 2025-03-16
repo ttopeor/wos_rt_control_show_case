@@ -7,15 +7,20 @@ pip install -e .
 ## take very long time
 mim install mmcv
 
-mkdir model & cd model
+mkdir model
+cd model
 mim download mmdet --config solov2_r50_fpn_1x_coco --dest .
 
 cd ..
 pip install -r module/graspnet-baseline/requirements.txt
 python module/graspnet-baseline/pointnet2/setup.py install
 python module/graspnet-baseline/knn/setup.py install
+
+might need to change graspnetAPI setup.py list "sklearn" to "scikit-learn"
 pip install module/graspnetAPI
 
 download https://drive.google.com/file/d/1DcjGGhZIJsxd61719N0iWA7L6vNEK0ci/view
 decompress and move it into module/graspnet-baseline/tolerance
 
+download https://drive.google.com/file/d/1hd0G8LN6tRpi4742XOTEisbTXNZ-1jmk/view
+move tar to model/
