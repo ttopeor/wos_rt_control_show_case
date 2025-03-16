@@ -1,13 +1,12 @@
 from setuptools import setup, find_packages
 
 setup(
-    name="dual_delta6_teleopration",               
+    name="wos_rt_control_show_case",               
     version="0.0",                   
     packages=find_packages('module'),   
     package_dir={'': 'module'},        
     install_requires=[
-        'librealsense2', 'openmim'
-        
+        'pyrealsense2', 'openmim', 'torch', 'opencv-python','mmdet'
     ],
     author="Yue Feng",
     author_email="ttopeor@gmail.com",
