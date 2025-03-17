@@ -112,11 +112,11 @@ class BananaGraspDemo:
                 print("[BananaGraspDemo] Grasp command sent. Waiting for execution...")
 
                 # Optional: break or let the robot keep grasping in a loop
-                #time.sleep(10.0)  # Prevent overly fast looping
-                input("Please enter for next try: ")
-                self.write_arm_position.rt_movec_soft(self.fr3_home_pos, 5)
-                print("[BananaGraspDemo] Homing Arm fr3...")
-                time.sleep(6)
+                time.sleep(10.0)
+                # input("Please enter for next try: ")
+                # self.write_arm_position.rt_movec_soft(self.fr3_home_pos, 5)
+                # print("[BananaGraspDemo] Homing Arm fr3...")
+                # time.sleep(6)
 
         except KeyboardInterrupt:
             print("[BananaGraspDemo] Ctrl + C received. Exiting...")
