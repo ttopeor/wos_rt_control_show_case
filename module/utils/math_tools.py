@@ -166,6 +166,30 @@ def compute_force_at_B(measured_force_moment_A, transform):
     force_moment_B = np.concatenate([F_B, M_B])
     return force_moment_B.tolist()
 
+def compute_6d_distance(current_pose, target_pose):
+    """
+    Compute the 6D Euclidean distance between the current pose and target pose.
+    
+    :param current_pose: [x, y, z, roll, pitch, yaw] (units: meters, radians)
+    :param target_pose: [x, y, z, roll, pitch, yaw] (units: meters, radians)
+    :return: 6D Euclidean distance
+    """
+    # Ensure the inputs are numpy arrays
+    current_pose = np.array(current_pose)
+    target_pose = np.array(target_pose)
+    
+    # Compute the position difference (x, y, z)
+    position_diff = current_pose[:3] - target_pose[:3]
+    
+    # Compute the rotation angle difference (roll, pitch, yaw)
+    # Adjust for periodicity: Ensure angles remain within [-π, π]
+    angle_diff = current_pose[3:] - target_pose[3:]
+    angle_diff = (angle_diff + np.pi) % (2 * np.pi) - np.pi  
+    
+    # Compute the 6D Euclidean distance
+    distance = np.linalg.norm(np.hstack([position_diff, angle_diff]))
+    
+    return distance
 
 def quantize_to_resolution(value, resolution):
 

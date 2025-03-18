@@ -37,6 +37,9 @@ class BananaGraspDemo:
         wos_endpoint = self.config["wos_end_point"]
         print("[BananaGraspDemo] WOS Endpoint:", wos_endpoint)
 
+        self.from_ee_to_cam_trans = self.config["rs_D405"]["mount_transfer_graspnet_curve"]
+        self.from_cam_to_ee_target_trans = self.config["rs_D405"]["target_transfer_curve"]
+
         # 2) Start the RealSense frame acquisition loop
         self.rs_loop = ReadRSFrameLoop()  # Example: 30 FPS
         # 3) Start the robotic arm position reading loop
@@ -49,6 +52,8 @@ class BananaGraspDemo:
 
         # 5) Move the robotic arm to its home position
         self.write_arm_position.rt_movec_soft(self.fr3_home_pos, 5)
+        self.write_arm_position.open_fr3_gripper()
+
         print("[BananaGraspDemo] Homing Arm fr3...")
         time.sleep(6)
 
@@ -105,18 +110,22 @@ class BananaGraspDemo:
                 # (D) Retrieve robotic arm position and transform target to end-effector coordinates
                 arm_pos_reading = self.read_arm_position_loop.get_position_reading()
 
-                target = from_camera_target_to_ee_target(camera_target, arm_pos_reading).tolist()
+                target = from_camera_target_to_ee_target(camera_target, arm_pos_reading, self.from_ee_to_cam_trans, self.from_cam_to_ee_target_trans).tolist()
 
                 # (E) Send movement command to the robotic arm
                 self.write_arm_position.rt_movec_soft(target, 6)
                 print("[BananaGraspDemo] Grasp command sent. Waiting for execution...")
-
+                time.sleep(6)
+                self.write_arm_position.close_fr3_gripper()
                 # Optional: break or let the robot keep grasping in a loop
                 #time.sleep(10.0)
                 input("Please enter for next try: ")
                 self.write_arm_position.rt_movec_soft(self.fr3_home_pos, 5)
+                self.write_arm_position.open_fr3_gripper()
+
                 print("[BananaGraspDemo] Homing Arm fr3...")
                 time.sleep(6)
+
 
         except KeyboardInterrupt:
             print("[BananaGraspDemo] Ctrl + C received. Exiting...")
@@ -201,8 +210,8 @@ class BananaGraspDemo:
 
         # 5) Select best grasp
         best_grasp = gg[0]
-        if best_grasp.score < 0.7:
-            print(f"[BananaGraspDemo] Best grasp score {best_grasp.score:.3f} < 0.7, skipping.")
+        if best_grasp.score < 0.6:
+            print(f"[BananaGraspDemo] Best grasp score {best_grasp.score:.3f} < 0.6, skipping.")
             return None
         
         # 6) Convert rotation matrix to roll, pitch, yaw
@@ -210,7 +219,11 @@ class BananaGraspDemo:
         print(f"[BananaGraspDemo] Grasp target is: {trans_rot}, Socre is {best_grasp.score}")
                 
         self.affordance_generator.vis_grasps(gg,cloud_o3d,1)
-        return trans_rot
+        excute = input("Go?(y/n)")
+        if excute == 'n':
+            return None
+        else:
+            return trans_rot
 
 def main():
     demo = BananaGraspDemo()

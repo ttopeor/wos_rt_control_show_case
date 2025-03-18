@@ -3,12 +3,12 @@ import time
 import cv2
 import numpy as np
 
-from obj_affordance_generator import ObjectAffordanceGenerator
 from object_segments.detect_obj import ObjDetectorSOLOv2
 from utils.config_loader import load_config
 
 from rt_loops.read_rs_frams_loop import ReadRSFrameLoop
 from rt_loops.read_arm_pos_loop import ReadArmPositionLoop
+from utils.math_tools import compute_6d_distance
 from wos_api.robot_rt_control import robot_rt_control
 
 from rs_mount.rs_mount_trans import from_camera_target_to_ee_target
@@ -38,6 +38,9 @@ class OrangeGraspDemo:
         wos_endpoint = self.config["wos_end_point"]
         print("[OrangeGraspDemo] WOS Endpoint:", wos_endpoint)
 
+        self.from_ee_to_cam_trans = self.config["rs_D405"]["mount_transfer_curve"]
+        self.from_cam_to_ee_target_trans = self.config["rs_D405"]["target_transfer_curve"]
+        
         # 2) Start the RealSense frame acquisition loop
         self.rs_loop = ReadRSFrameLoop()  # Example: 30 FPS
         # 3) Start the robotic arm position reading loop
@@ -47,11 +50,6 @@ class OrangeGraspDemo:
 
         # 4) Initialize robot control interface
         self.write_arm_position = robot_rt_control(fr3_id, wos_endpoint)
-
-        # 5) Move the robotic arm to its home position
-        self.write_arm_position.rt_movec_soft(self.fr3_home_pos, 5)
-        print("[OrangeGraspDemo] Homing Arm fr3...")
-        time.sleep(6)
 
         # 6) Initialize object detection and grasp prediction models
         solov2_config_path = os.path.join(MODEL_DIR, 'solov2_r50_fpn_1x_coco.py')
@@ -65,6 +63,14 @@ class OrangeGraspDemo:
         )
 
         time.sleep(2)  # Allow time for models/threads to initialize
+        
+        # 5) Move the robotic arm to its home position
+        self.write_arm_position.rt_movec_soft(self.fr3_home_pos, 3)
+        self.write_arm_position.open_fr3_gripper()
+        print("[OrangeGraspDemo] Homing Arm fr3...")
+        time.sleep(3)
+
+
         print("[OrangeGraspDemo] Setup completed.")
         self.start_time = time.time()
 
@@ -90,13 +96,21 @@ class OrangeGraspDemo:
                 
                 arm_pos_reading = self.read_arm_position_loop.get_position_reading()
 
-                target = from_camera_target_to_ee_target(camera_target, arm_pos_reading).tolist()
+                target = from_camera_target_to_ee_target(camera_target, arm_pos_reading, self.from_ee_to_cam_trans, self.from_cam_to_ee_target_trans).tolist()
 
                 # (E) Send movement command to the robotic arm
-                if (time.time() - self.start_time) > 3.5: # Waiting for arm execution, second 7
-                    self.write_arm_position.rt_movec_soft(target, 3)
+                if (time.time() - self.start_time) > 0.75: # Waiting for arm execution, second 7
+                    distance = compute_6d_distance(arm_pos_reading, target)
+                    if distance<= 0.02:
+                        print("Distance:", distance)
+                        self.write_arm_position.close_fr3_gripper()
+                        print("[OrangeGraspDemo] Grasp command sent. Waiting for execution...")
+                        time.sleep(1.0)
+                        self.write_arm_position.rt_movec_soft(self.fr3_home_pos, 2)
+                        break
+                    self.write_arm_position.rt_movec_soft(target, 1.5)
                     self.start_time = time.time()
-                    print("[OrangeGraspDemo] Grasp command sent. Waiting for execution...")
+                    print("[OrangeGraspDemo]  Waiting for execution...")
 
 
         except KeyboardInterrupt:
@@ -140,7 +154,6 @@ class OrangeGraspDemo:
             for i, obj_info in enumerate(results):
                 mask = obj_info['mask']
                 (x_c, y_c, z_c) = obj_info['center_3d']
-                print(f"[get_camera_target_from_solo_v2] Object {i}: center = ({x_c:.3f}, {y_c:.3f}, {z_c:.3f})")
 
                 overlay = np.zeros_like(vis_img, dtype=np.uint8)
                 overlay_color = (0, 255, 0) 
@@ -157,7 +170,7 @@ class OrangeGraspDemo:
             chosen = min(results, key=lambda obj: obj['center_3d'][2])
             (x_c, y_c, z_c) = chosen['center_3d']
             print(f"[get_camera_target_from_solo_v2] Nearest object center = ({x_c:.3f}, {y_c:.3f}, {z_c:.3f})")
-            return [-x_c, -y_c, z_c, 0, 0, 0]
+            return [-x_c, -y_c, z_c, 0, 0, 0] #color_image and depth_image are up/down left/right shifted
         else:
             return None
         

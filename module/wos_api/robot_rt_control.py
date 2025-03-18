@@ -35,3 +35,16 @@ class robot_rt_control:
         if err:
             print(f"Robot control, Error occurred: {err}")
         return result
+    def gripper_fb(self):
+        return
+    def open_fr3_gripper(self):
+        result, err = self.client.run_action(self.robot_id+"/action", "open-gripper", {"width": 0.08, "speed": 0.05},self.gripper_fb())
+        if err:
+            print(f"Robot control, Error occurred: {err}")
+        return result
+    def close_fr3_gripper(self):
+        result, err = self.client.run_action(self.robot_id+"/action", "close-gripper", 
+                                             {"width": 0.0, "speed": 0.08, "force": 30, "epsilon": 0.02}, self.gripper_fb())
+        if err:
+            print(f"Robot control, Error occurred: {err}")
+        return result

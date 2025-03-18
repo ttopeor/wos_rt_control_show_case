@@ -8,14 +8,28 @@ encoder:
   - -1
 
 rs_D405:
-  mount_transfer:
+  target_transfer_curve:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.349066
+  - 0.0
+  - 0.0
+  mount_transfer_curve:
+  - -0.009
+  - -0.09943
+  - -0.16115 
+  - -0.349066
+  - 0.0
+  - 0.0
+  mount_transfer_stright:
   - -0.009
   - -0.06995
   - -0.16802
   - 0.0
   - 0.0
   - 0.0
-  mount_transfer_graspnet:
+  mount_transfer_graspnet_stright:
   - -0.009
   - -0.06995
   - -0.16802
@@ -47,7 +61,7 @@ fr3_home_pos_stright:
 fr3_home_pos:
 - 0.45282
 - 0.00
-- 0.47715
+- 0.58
 - 3.14098
 - 0.31183
 - 1.59027

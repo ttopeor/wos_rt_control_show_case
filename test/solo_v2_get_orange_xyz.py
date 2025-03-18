@@ -3,6 +3,7 @@ import cv2
 import numpy as np
 from object_segments.detect_obj import ObjDetectorSOLOv2
 import pyrealsense2 as rs
+from rs_mount.rs_mount_trans import from_camera_target_to_ee_target
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__)) 
 REPO_DIR = os.path.join(BASE_DIR, '..')           
@@ -61,8 +62,7 @@ try:
             (x_c, y_c, z_c) = obj_info['center_3d']
 
             print(f"[Object {i}] 3D center = (x={x_c:.3f}, y={y_c:.3f}, z={z_c:.3f})")
-
-
+            
             overlay = np.zeros_like(vis_img, dtype=np.uint8)
             overlay_color = (0, 255, 0) 
             overlay[mask] = overlay_color
