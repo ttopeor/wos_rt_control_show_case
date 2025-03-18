@@ -12,10 +12,17 @@ rs_D405:
   - -0.009
   - -0.06995
   - -0.16802
+  - 0.0
+  - 0.0
+  - 0.0
+  mount_transfer_graspnet:
+  - -0.009
+  - -0.06995
+  - -0.16802
   - -0.0
   - 0.0
   - 3.1415926
-  mount_transfer_curve:
+  mount_transfer_graspnet_curve:
   - -0.009
   - -0.09943
   - -0.16115 
@@ -29,7 +36,7 @@ fr3_resource_id: component/6b15904e-4296-43d6-aa55-2477d1fce382
 lite6_resource_id: component/05293420-caba-463c-b0a2-0681047250fa
 wos_end_point: localhost:15117
 
-fr3_home_pos:
+fr3_home_pos_stright:
 - 0.40
 - 0.00
 - 0.46
@@ -37,7 +44,7 @@ fr3_home_pos:
 - 0.0
 - 1.5707963
 
-fr3_home_pos_curve_cam:
+fr3_home_pos:
 - 0.45282
 - 0.00
 - 0.47715

@@ -66,7 +66,64 @@ class ObjDetectorSOLOv2:
                 mask_i = seg_pred[i].cpu().numpy().astype(bool)
                 obj_masks.append(mask_i)
         return obj_masks
+    
+    def get_object_xyz(self, color_image, depth_image, depth_intrin, depth_scale,
+                       max_depth=10000, sigma_factor=2.0):
+   
+        masks = self.detect_obj(color_image)
 
+        results = []
+        for mask in masks:
+            ys, xs = np.where(mask)
+            if len(xs) == 0:
+                continue  
+
+            pts_3d = []
+            for (u, v) in zip(xs, ys):
+                depth_value = depth_image[v, u]
+                if depth_value == 0 or depth_value > max_depth:
+                    continue
+                point_3d = rs.rs2_deproject_pixel_to_point(
+                    depth_intrin, [u, v], depth_value * depth_scale
+                )
+                pts_3d.append(point_3d)
+
+            if len(pts_3d) == 0:
+                continue  
+
+            pts_3d = np.array(pts_3d) 
+
+            z_vals = pts_3d[:, 2]
+            z_mean = np.mean(z_vals)
+            z_std = np.std(z_vals)
+
+            if z_std < 1e-6:
+                filtered_pts_3d = pts_3d
+            else:
+                z_min = z_mean - sigma_factor * z_std
+                z_max = z_mean + sigma_factor * z_std
+                filtered_pts_3d = pts_3d[(z_vals >= z_min) & (z_vals <= z_max)]
+            
+            if len(filtered_pts_3d) == 0:
+                continue  
+
+            x_c, y_c, z_c = filtered_pts_3d.mean(axis=0)
+
+            center_pixel = rs.rs2_project_point_to_pixel(depth_intrin, [x_c, y_c, z_c])
+            cx, cy = int(center_pixel[0]), int(center_pixel[1])
+
+            x1, y1 = np.min(xs), np.min(ys)
+            x2, y2 = np.max(xs), np.max(ys)
+
+            results.append({
+                'mask': mask,
+                'bbox': (x1, y1, x2, y2),
+                'center_2d': (cx, cy),
+                'center_3d': (x_c, y_c, z_c),
+                'pts_num': len(filtered_pts_3d)  
+            })
+
+        return results
 
 if __name__ == "__main__":
     

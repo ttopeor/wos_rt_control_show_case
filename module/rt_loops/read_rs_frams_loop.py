@@ -34,8 +34,8 @@ class ReadRSFrameLoop:
         self.pipeline = rs.pipeline()
         self.config = rs.config()
         self.depth_scale = None  
-        self.intrinsic = None  
-
+        self.intrinsic_matrix = None  
+        self.intrinsic = None
 
         self.config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, self.freq)
         self.config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, self.freq)
@@ -55,16 +55,16 @@ class ReadRSFrameLoop:
             aligned_frames = self.align.process(frames)
             depth_frame = aligned_frames.get_depth_frame()
             if depth_frame:
-                intr = depth_frame.profile.as_video_stream_profile().get_intrinsics()
-                fx, fy = intr.fx, intr.fy
-                cx, cy = intr.ppx, intr.ppy
-                self.intrinsic = np.array([
+                self.intrinsic = depth_frame.profile.as_video_stream_profile().get_intrinsics()
+                fx, fy = self.intrinsic.fx, self.intrinsic.fy
+                cx, cy = self.intrinsic.ppx, self.intrinsic.ppy
+                self.intrinsic_matrix = np.array([
                     [fx, 0,  cx],
                     [0,  fy, cy],
                     [0,   0,  1]
                 ], dtype=np.float32)
                 print("[RealSenseFrameLoop] Intrinsic matrix:")
-                print(self.intrinsic)
+                print(self.intrinsic_matrix)
                 break
             time.sleep(0.1)
 
@@ -103,6 +103,10 @@ class ReadRSFrameLoop:
         return self.depth_scale
 
     def get_intrinsic_matrix(self):
+
+        return self.intrinsic_matrix
+    
+    def get_intrinsic(self):
 
         return self.intrinsic
 

@@ -108,15 +108,15 @@ class BananaGraspDemo:
                 target = from_camera_target_to_ee_target(camera_target, arm_pos_reading).tolist()
 
                 # (E) Send movement command to the robotic arm
-                self.write_arm_position.rt_movec_soft(target, 10)
+                self.write_arm_position.rt_movec_soft(target, 6)
                 print("[BananaGraspDemo] Grasp command sent. Waiting for execution...")
 
                 # Optional: break or let the robot keep grasping in a loop
-                time.sleep(10.0)
-                # input("Please enter for next try: ")
-                # self.write_arm_position.rt_movec_soft(self.fr3_home_pos, 5)
-                # print("[BananaGraspDemo] Homing Arm fr3...")
-                # time.sleep(6)
+                #time.sleep(10.0)
+                input("Please enter for next try: ")
+                self.write_arm_position.rt_movec_soft(self.fr3_home_pos, 5)
+                print("[BananaGraspDemo] Homing Arm fr3...")
+                time.sleep(6)
 
         except KeyboardInterrupt:
             print("[BananaGraspDemo] Ctrl + C received. Exiting...")
@@ -201,7 +201,7 @@ class BananaGraspDemo:
 
         # 5) Select best grasp
         best_grasp = gg[0]
-        if best_grasp.score < 0.5:
+        if best_grasp.score < 0.7:
             print(f"[BananaGraspDemo] Best grasp score {best_grasp.score:.3f} < 0.7, skipping.")
             return None
         
