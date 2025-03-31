@@ -1,3 +1,4 @@
+import math
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 
@@ -190,6 +191,7 @@ def compute_6d_distance(current_pose, target_pose):
     distance = np.linalg.norm(np.hstack([position_diff, angle_diff]))
     
     return distance
+
 
 def quantize_to_resolution(value, resolution):
 

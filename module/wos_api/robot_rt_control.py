@@ -1,3 +1,4 @@
+import json
 import logging
 from wos_api.connection import CreateWSClient
 
@@ -23,6 +24,13 @@ class robot_rt_control:
                 print(f"Robot control, Error occurred: {err}")
             return result
     
+    def rt_moves(self,target):
+        result, err = self.client.run_request(self.robot_id, "rt-move-sequence", {
+                                    "cartesianPosition": target, "scale": 1.0})
+        if err:
+            print(f"Robot control, Error occurred: {err}")
+        return result
+        
     def rt_movec(self,target):
         result, err = self.client.run_request(self.robot_id, "rt-move-cartesian", {
                                     "destination": target, "velocityPercentage": 100, "isRelative": False})
@@ -35,6 +43,17 @@ class robot_rt_control:
         if err:
             print(f"Robot control, Error occurred: {err}")
         return result
+    
+    def rt_move(self,waypoints):
+        payload = {"waypoints": waypoints}
+        # json_str = json.dumps(payload, indent=2)
+        # print("DEBUG JSON going to rt_move:\n", json_str)
+        
+        result, err = self.client.run_request(self.robot_id, "rt-move", payload)
+        if err:
+            print(f"Robot control, Error occurred: {err}")
+        return result
+    
     def gripper_fb(self):
         return
     def open_fr3_gripper(self):
@@ -44,7 +63,8 @@ class robot_rt_control:
         return result
     def close_fr3_gripper(self):
         result, err = self.client.run_action(self.robot_id+"/action", "close-gripper", 
-                                             {"width": 0.0, "speed": 0.08, "force": 30, "epsilon": 0.02}, self.gripper_fb())
+                                             {"width": 0.05, "speed": 0.08, "force": 1, "epsilon": 0.02}, self.gripper_fb())
         if err:
             print(f"Robot control, Error occurred: {err}")
         return result
+    
