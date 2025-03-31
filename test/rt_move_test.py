@@ -32,7 +32,7 @@ class RTMoveSTest:
         time.sleep(3)
 
     def run(self):
-        radius = 0.02 
+        radius = 0.04 
 
         home_x = self.fr3_home_pos[0]
         home_y = self.fr3_home_pos[1]
@@ -45,7 +45,7 @@ class RTMoveSTest:
         center_y = home_y
 
         theta = 0.0
-        dtheta = 0.05  # rad
+        dtheta = 0.3  # rad
 
         try:
             while True:
@@ -56,7 +56,7 @@ class RTMoveSTest:
 
                 new_wp = {
                     "position": target,
-                    "duration": 0.03
+                    "duration": 0.2
                 }
 
                 if len(self.waypoints) < 5:
@@ -69,7 +69,7 @@ class RTMoveSTest:
                     self.write_arm_position.rt_move(self.waypoints)
 
                 theta += dtheta
-                time.sleep(0.03)
+                time.sleep(0.2)
 
         except KeyboardInterrupt:
             print("Ctrl + C received. Exiting...")
