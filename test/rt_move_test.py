@@ -47,6 +47,7 @@ class RTMoveSTest:
         theta = 0.0
         dtheta = 0.3  # rad
 
+        peroid = 0.2
         try:
             while True:
                 x = center_x + radius * np.cos(theta)
@@ -56,7 +57,7 @@ class RTMoveSTest:
 
                 new_wp = {
                     "position": target,
-                    "duration": 0.2
+                    "duration": peroid
                 }
 
                 if len(self.waypoints) < 5:
@@ -69,7 +70,7 @@ class RTMoveSTest:
                     self.write_arm_position.rt_move(self.waypoints)
 
                 theta += dtheta
-                time.sleep(0.2)
+                time.sleep(peroid)
 
         except KeyboardInterrupt:
             print("Ctrl + C received. Exiting...")

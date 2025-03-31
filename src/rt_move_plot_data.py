@@ -4,11 +4,13 @@
 """
 Example usage:
 
-    animator = JointTrajectoryAnimator(
+    animator = DimensionTrajectoryAnimator(
         data_path="/home/yue/Workspace/wos/tmp/logdata.json",
-        joint_idx=6,         # Visualize joint #7 (Python index=6)
-        half_window=0.4,     # Window half-size for rolling display
-        slower_factor=1.0,   # Slow down factor for animation
+        space_mode='cartesian',   # 'joint' or 'cartesian'
+        dimension_show=2,         # If cartesian: 0=x,1=y,2=z,3=roll,4=pitch,5=yaw
+                                  # If joint: 0~N for the joint index
+        half_window=0.4,
+        slower_factor=1.0,
     )
     animator.run()
 """
@@ -19,46 +21,60 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 
 
-class JointTrajectoryAnimator:
+class DimensionTrajectoryAnimator:
     """
-    A class to animate a specific joint (e.g. joint #7) from a given JSON log
-    file containing 'ticks' and 'set_target' data.
+    A class to animate either a specific joint dimension or a specific cartesian
+    dimension (x,y,z,roll,pitch,yaw) from a given JSON log file containing
+    'ticks' and 'set_target' data.
 
-    The animation will display:
-      - Reference trajectory (black dots)
-      - Current state (red triangle)
-      - Waypoints (blue dots)
-      - Planned future trajectory (green dots)
-      - With a rolling time window to keep the current time in the middle.
+    The animation will display (for one dimension only):
+      - Position (top subplot)
+      - Velocity (middle subplot)
+      - Acceleration (bottom subplot)
 
-    Parameters
-    ----------
-    data_path : str
-        Path to the JSON log file.
-    joint_idx : int
-        Which joint index to visualize (Python-based index).
-    half_window : float
-        Half of the rolling window width in seconds, used to set x-axis range
-        around the current time.
-    slower_factor : float
-        A multiplier to slow down (or speed up) the animation frame interval.
+    Depending on space_mode:
+      * 'joint':
+          dimension_show = 0..6 (or however many joints you have)
+          => read from 'current_joint_state_ref/current_joint_state'
+             'joints_waypoints', 'planned_joints_trajectory'
+      * 'cartesian':
+          dimension_show = 0..5 => x=0,y=1,z=2,roll=3,pitch=4,yaw=5
+          => read from 'current_cartesian_state_ref/current_cartesian_state'
+             'request_waypoints', 'planned_cartesian_trajectory'
+
+    We'll treat dimension_show as "which index in the position/velocity/acceleration arrays"
+    to display.
     """
 
-    def __init__(self, 
+    def __init__(self,
                  data_path: str,
-                 joint_idx: int = 6,
+                 space_mode: str = 'joint',
+                 dimension_show: int = 0,
                  half_window: float = 0.4,
                  slower_factor: float = 1.0):
         """
-        Constructor. Reads and parses the JSON log. Initializes matplotlib
-        figure and lines, but does not start the animation yet.
+        Parameters
+        ----------
+        data_path : str
+            Path to the JSON log file.
+        space_mode : str
+            'joint' or 'cartesian'
+        dimension_show : int
+            Which dimension to display. 
+            If 'joint' => dimension_show is the joint index (0..6 or so).
+            If 'cartesian' => 0..5 => x=0,y=1,z=2,roll=3,pitch=4,yaw=5
+        half_window : float
+            Rolling time window half-size (in seconds)
+        slower_factor : float
+            Speed factor for animation interval
         """
         self.data_path = data_path
-        self.joint_idx = joint_idx
+        self.space_mode = space_mode.lower()
+        self.dimension_show = dimension_show
         self.half_window = half_window
         self.slower_factor = slower_factor
 
-        # 1) Load JSON
+        # Load JSON
         with open(self.data_path, 'r') as f:
             log_data = json.load(f)
 
@@ -67,102 +83,111 @@ class JointTrajectoryAnimator:
         # Retrieve set_target logs
         self.set_targets = log_data.get("set_target", [])
 
-        # 2) Parse tick data
+        # Parse ticks & set_target
         self._parse_tick_data()
-
-        # 3) Parse set_target data
         self._parse_set_target_data()
 
-        # 4) Determine overall max_time and Y-limits
+        # Compute overall ranges
         self._compute_plot_ranges()
 
-        # 5) Prepare matplotlib figure and lines
+        # Prepare figure & lines
         self._init_figure()
 
-        # 6) Prepare frames for animation
+        # Prepare frames
         self._prepare_animation_frames()
 
-        # The actual animation object (FuncAnimation) will be created in run()
         self.ani = None
 
     def _parse_tick_data(self):
-        """
-        Parse the 'ticks' array from the log. Extract time, reference states,
-        and current states for the selected joint.
-        """
+        """Parse 'ticks' logs, picking the correct fields depending on space_mode."""
         self.tick_times = []
-        self.tick_joint_pos_ref = []
-        self.tick_joint_vel_ref = []
-        self.tick_joint_acc_ref = []
+        self.tick_pos_ref = []
+        self.tick_vel_ref = []
+        self.tick_acc_ref = []
 
-        self.tick_joint_pos = []
-        self.tick_joint_vel = []
-        self.tick_joint_acc = []
+        self.tick_pos_cur = []
+        self.tick_vel_cur = []
+        self.tick_acc_cur = []
+
+        # Depending on space_mode, we pick different JSON keys
+        pos_ref_key = "current_joint_state_ref"
+        pos_cur_key = "current_joint_state"
+
+        if self.space_mode == 'cartesian':
+            pos_ref_key = "current_cartesian_state_ref"
+            pos_cur_key = "current_cartesian_state"
 
         for tk in self.ticks:
             t = tk["time_from_start"]
             self.tick_times.append(t)
 
-            ref_state = tk["current_joint_state_ref"]
-            self.tick_joint_pos_ref.append(ref_state["position"])
-            self.tick_joint_vel_ref.append(ref_state["velocity"])
-            self.tick_joint_acc_ref.append(ref_state["acceleration"])
+            ref_state = tk[pos_ref_key]
+            cur_state = tk[pos_cur_key]
 
-            cur_state = tk["current_joint_state"]
-            self.tick_joint_pos.append(cur_state["position"])
-            self.tick_joint_vel.append(cur_state["velocity"])
-            self.tick_joint_acc.append(cur_state["acceleration"])
+            self.tick_pos_ref.append(ref_state["position"])
+            self.tick_vel_ref.append(ref_state["velocity"])
+            self.tick_acc_ref.append(ref_state["acceleration"])
+
+            self.tick_pos_cur.append(cur_state["position"])
+            self.tick_vel_cur.append(cur_state["velocity"])
+            self.tick_acc_cur.append(cur_state["acceleration"])
 
         self.tick_times = np.array(self.tick_times)
-        self.tick_joint_pos_ref = np.array(self.tick_joint_pos_ref)    # shape: (N, n_joints)
-        self.tick_joint_vel_ref = np.array(self.tick_joint_vel_ref)
-        self.tick_joint_acc_ref = np.array(self.tick_joint_acc_ref)
-        self.tick_joint_pos = np.array(self.tick_joint_pos)
-        self.tick_joint_vel = np.array(self.tick_joint_vel)
-        self.tick_joint_acc = np.array(self.tick_joint_acc)
+
+        self.tick_pos_ref = np.array(self.tick_pos_ref)
+        self.tick_vel_ref = np.array(self.tick_vel_ref)
+        self.tick_acc_ref = np.array(self.tick_acc_ref)
+
+        self.tick_pos_cur = np.array(self.tick_pos_cur)
+        self.tick_vel_cur = np.array(self.tick_vel_cur)
+        self.tick_acc_cur = np.array(self.tick_acc_cur)
 
     def _parse_set_target_data(self):
         """
-        Parse the 'set_target' array to extract each target's:
-            - start_time
-            - waypoints (time + position)
-            - planned trajectory (time + pos/vel/acc)
-        Store them in a list of dict named 'plans'.
+        Parse the 'set_target' logs. If space_mode='joint', read 'joints_waypoints'
+        & 'planned_joints_trajectory'. If 'cartesian', read 'request_waypoints'
+        & 'planned_cartesian_trajectory'.
         """
         self.plans = []
+        if self.space_mode == 'cartesian':
+            wp_key = "request_waypoints"
+            plan_key = "planned_cartesian_trajectory"
+        else:
+            wp_key = "joints_waypoints"
+            plan_key = "planned_joints_trajectory"
+
         for st in self.set_targets:
             st_time = st["time_from_start"]
+
+            waypoints = st.get(wp_key, [])
             wp_times_local = []
             wp_pos_local = []
 
-            # Accumulate durations to get absolute time for waypoints
             cum_time = st_time
-            for wp in st["joints_waypoints"]:
+            for wp in waypoints:
                 cum_time += wp["duration"]
                 wp_times_local.append(cum_time)
                 wp_pos_local.append(wp["position"])
 
             wp_times_local = np.array(wp_times_local)
-            wp_pos_local = np.array(wp_pos_local)  # shape: (M, n_joints)
+            wp_pos_local = np.array(wp_pos_local)
 
-            # planned trajectory
+            planned_traj = st.get(plan_key, [])
             planned_times_local = []
             planned_pos_local = []
             planned_vel_local = []
             planned_acc_local = []
 
-            if "planned_joints_trajectory" in st:
-                for pt in st["planned_joints_trajectory"]:
-                    t_ns = pt["time_from_start"]
-                    t_s = t_ns / 1e9
-                    t_abs = st_time + t_s
+            for pt in planned_traj:
+                t_ns = pt["time_from_start"]
+                t_s = t_ns / 1e9
+                t_abs = st_time + t_s
 
-                    planned_times_local.append(t_abs)
-
-                    stt = pt["state"]
-                    planned_pos_local.append(stt["position"])
-                    planned_vel_local.append(stt.get("velocity", [0]*6))
-                    planned_acc_local.append(stt.get("acceleration", [0]*6))
+                planned_times_local.append(t_abs)
+                stt = pt["state"]
+                planned_pos_local.append(stt["position"])
+                planned_vel_local.append(stt.get("velocity", [0]*6))
+                planned_acc_local.append(stt.get("acceleration", [0]*6))
 
             planned_times_local = np.array(planned_times_local)
             planned_pos_local = np.array(planned_pos_local)
@@ -181,105 +206,111 @@ class JointTrajectoryAnimator:
 
     def _compute_plot_ranges(self):
         """
-        Determine the maximum time for the entire animation, and the global
-        min/max for position, velocity, and acceleration for the selected joint.
+        Only storing min/max for the dimension_show index across position/velocity/acceleration.
         """
         self.all_pos_vals = []
         self.all_vel_vals = []
         self.all_acc_vals = []
 
-        # Tick ref
-        if self.tick_joint_pos_ref.size > 0:
-            self.all_pos_vals.extend(self.tick_joint_pos_ref[:, self.joint_idx])
-            self.all_vel_vals.extend(self.tick_joint_vel_ref[:, self.joint_idx])
-            self.all_acc_vals.extend(self.tick_joint_acc_ref[:, self.joint_idx])
+        # Ticks
+        if len(self.ticks) > 0:
+            # Only gather dimension_show
+            pos_ref_dim = self.tick_pos_ref[:, self.dimension_show]
+            pos_cur_dim = self.tick_pos_cur[:, self.dimension_show]
+            vel_ref_dim = self.tick_vel_ref[:, self.dimension_show]
+            vel_cur_dim = self.tick_vel_cur[:, self.dimension_show]
+            acc_ref_dim = self.tick_acc_ref[:, self.dimension_show]
+            acc_cur_dim = self.tick_acc_cur[:, self.dimension_show]
 
-        # Tick actual
-        if self.tick_joint_pos.size > 0:
-            self.all_pos_vals.extend(self.tick_joint_pos[:, self.joint_idx])
-            self.all_vel_vals.extend(self.tick_joint_vel[:, self.joint_idx])
-            self.all_acc_vals.extend(self.tick_joint_acc[:, self.joint_idx])
+            self.all_pos_vals.extend(pos_ref_dim)
+            self.all_pos_vals.extend(pos_cur_dim)
+            self.all_vel_vals.extend(vel_ref_dim)
+            self.all_vel_vals.extend(vel_cur_dim)
+            self.all_acc_vals.extend(acc_ref_dim)
+            self.all_acc_vals.extend(acc_cur_dim)
+
+            self.max_t_tick = self.tick_times.max()
+        else:
+            self.max_t_tick = 0
 
         self.max_time_val = 0
-
-        # Parse set_target
+        # Plans
         for plan in self.plans:
-            wp_pos_arr = plan["waypoints_positions"]
-            wp_t_arr   = plan["waypoints_times"]
-            if wp_pos_arr.size > 0:
-                self.all_pos_vals.extend(wp_pos_arr[:, self.joint_idx])
-                local_max = wp_t_arr.max()
-                self.max_time_val = max(self.max_time_val, local_max)
+            wp_t_arr = plan["waypoints_times"]
+            wp_p_arr = plan["waypoints_positions"]
+            if wp_t_arr.size > 0:
+                self.max_time_val = max(self.max_time_val, wp_t_arr.max())
+                if wp_p_arr.shape[1] > self.dimension_show:
+                    self.all_pos_vals.extend(wp_p_arr[:, self.dimension_show])
 
-            p_pos_arr = plan["planned_pos"]
-            p_t_arr   = plan["planned_times"]
-            if p_pos_arr.size > 0:
-                self.all_pos_vals.extend(p_pos_arr[:, self.joint_idx])
-                p_vel_arr = plan["planned_vel"][:, self.joint_idx]
-                p_acc_arr = plan["planned_acc"][:, self.joint_idx]
-                self.all_vel_vals.extend(p_vel_arr)
-                self.all_acc_vals.extend(p_acc_arr)
-                local_max = p_t_arr.max()
-                self.max_time_val = max(self.max_time_val, local_max)
+            plan_t_arr = plan["planned_times"]
+            plan_p_arr = plan["planned_pos"]
+            plan_v_arr = plan["planned_vel"]
+            plan_a_arr = plan["planned_acc"]
 
-        # Check overall max_time
-        self.max_t_tick = self.tick_times.max() if self.tick_times.size > 0 else 0.0
+            if plan_t_arr.size > 0:
+                self.max_time_val = max(self.max_time_val, plan_t_arr.max())
+                if plan_p_arr.shape[1] > self.dimension_show:
+                    self.all_pos_vals.extend(plan_p_arr[:, self.dimension_show])
+                if plan_v_arr.shape[1] > self.dimension_show:
+                    self.all_vel_vals.extend(plan_v_arr[:, self.dimension_show])
+                if plan_a_arr.shape[1] > self.dimension_show:
+                    self.all_acc_vals.extend(plan_a_arr[:, self.dimension_show])
+
         self.max_time = max(self.max_t_tick, self.max_time_val)
 
         if not self.all_pos_vals:
-            self.all_pos_vals = [0.0]
+            self.all_pos_vals = [0.]
         if not self.all_vel_vals:
-            self.all_vel_vals = [0.0]
+            self.all_vel_vals = [0.]
         if not self.all_acc_vals:
-            self.all_acc_vals = [0.0]
+            self.all_acc_vals = [0.]
 
-        self.pos_min, self.pos_max = self._expand_range(
-            min(self.all_pos_vals), max(self.all_pos_vals))
-        self.vel_min, self.vel_max = self._expand_range(
-            min(self.all_vel_vals), max(self.all_vel_vals))
-        self.acc_min, self.acc_max = self._expand_range(
-            min(self.all_acc_vals), max(self.all_acc_vals))
+        self.pos_min, self.pos_max = self._expand_range(min(self.all_pos_vals), max(self.all_pos_vals))
+        self.vel_min, self.vel_max = self._expand_range(min(self.all_vel_vals), max(self.all_vel_vals))
+        self.acc_min, self.acc_max = self._expand_range(min(self.all_acc_vals), max(self.all_acc_vals))
 
     def _expand_range(self, vmin, vmax, ratio=0.05):
-        """Expand the given range by a certain ratio to give some margin."""
         if vmin == vmax:
             return (vmin - 1, vmax + 1)
         span = vmax - vmin
-        return (vmin - ratio * span, vmax + ratio * span)
+        return (vmin - ratio*span, vmax + ratio*span)
 
     def _init_figure(self):
         """
-        Create the matplotlib figure, subplots, and line objects for
-        position, velocity, and acceleration of the specified joint.
+        We'll just name the subplots generically: "Position (Dim=dimension_show)",
+        "Velocity (Dim=dimension_show)", etc. 
+        If in cartesian mode and dimension_show=0 => x dimension,
+        1 => y dimension, etc.
         """
         self.fig, self.axes = plt.subplots(3, 1, figsize=(10, 8), sharex=True)
-        self.axes[0].set_ylabel(f"Position (J{self.joint_idx+1})")
-        self.axes[1].set_ylabel(f"Velocity (J{self.joint_idx+1})")
-        self.axes[2].set_ylabel(f"Acceleration (J{self.joint_idx+1})")
+
+        # Title or axis label
+        if self.space_mode == 'cartesian':
+            label_prefix = f"Cartesian Dim {self.dimension_show}"
+        else:
+            label_prefix = f"Joint {self.dimension_show}"
+
+        self.axes[0].set_ylabel(f"{label_prefix} Pos")
+        self.axes[1].set_ylabel(f"{label_prefix} Vel")
+        self.axes[2].set_ylabel(f"{label_prefix} Acc")
         self.axes[2].set_xlabel("Time (s)")
 
-        # 1) Reference
+        # Create line objects
         (self.line_pos_ref,) = self.axes[0].plot([], [], 'k.', label='Ref Pos')
         (self.line_vel_ref,) = self.axes[1].plot([], [], 'k.', label='Ref Vel')
         (self.line_acc_ref,) = self.axes[2].plot([], [], 'k.', label='Ref Acc')
 
-        # 2) Waypoints (blue)
-        (self.line_pos_wp,)  = self.axes[0].plot([], [], 'bo', label='Waypoints', zorder=10)
+        (self.line_pos_wp,)  = self.axes[0].plot([], [], 'bo', label='Waypoints')
+        (self.line_pos_plan,) = self.axes[0].plot([], [], 'g.', label='Plan Pos')
+        (self.line_vel_plan,) = self.axes[1].plot([], [], 'g.', label='Plan Vel')
+        (self.line_acc_plan,) = self.axes[2].plot([], [], 'g.', label='Plan Acc')
 
-        # 3) Planned Traj (green)
-        (self.line_pos_plan,) = self.axes[0].plot([], [], 'g.', label='Planned Pos (Future)')
-        (self.line_vel_plan,) = self.axes[1].plot([], [], 'g.', label='Planned Vel (Future)')
-        (self.line_acc_plan,) = self.axes[2].plot([], [], 'g.', label='Planned Acc (Future)')
+        (self.line_pos_cur,) = self.axes[0].plot([], [], 'r^', label='Current Pos', markersize=10)
+        (self.line_vel_cur,) = self.axes[1].plot([], [], 'r^', label='Current Vel', markersize=10)
+        (self.line_acc_cur,) = self.axes[2].plot([], [], 'r^', label='Current Acc', markersize=10)
 
-        # 4) Current state (red triangle)
-        (self.line_pos_cur,) = self.axes[0].plot([], [], 'r^', label='Current Pos',
-                                                 markersize=10, zorder=11)
-        (self.line_vel_cur,) = self.axes[1].plot([], [], 'r^', label='Current Vel',
-                                                 markersize=10)
-        (self.line_acc_cur,) = self.axes[2].plot([], [], 'r^', label='Current Acc',
-                                                 markersize=10)
-
-        # Set axis ranges
+        # Set axis range
         self.axes[0].set_xlim(0, self.max_time + 0.1)
         self.axes[0].set_ylim(self.pos_min, self.pos_max)
         self.axes[1].set_ylim(self.vel_min, self.vel_max)
@@ -288,26 +319,20 @@ class JointTrajectoryAnimator:
         for ax in self.axes:
             ax.grid(True)
 
-        self.axes[0].legend(loc='upper right', fontsize='small')
-        self.axes[1].legend(loc='upper right', fontsize='small')
-        self.axes[2].legend(loc='upper right', fontsize='small')
+        # Legend
+        leg0 = self.axes[0].legend(loc='upper right', fontsize='small')
+        leg1 = self.axes[1].legend(loc='upper right', fontsize='small')
+        leg2 = self.axes[2].legend(loc='upper right', fontsize='small')
+        leg0.set_zorder(12)
+        leg1.set_zorder(12)
+        leg2.set_zorder(12)
 
     def _prepare_animation_frames(self):
-        """
-        Prepare the time array used for the animation frames.
-        Larger num_frames => smoother animation => longer total time.
-        """
         self.num_frames = 300
         self.frames = np.linspace(0, self.max_time, self.num_frames)
-
-        # default interval in ms is 50, we multiply by slower_factor
         self.animation_interval = int(50 * self.slower_factor)
 
     def init_func(self):
-        """
-        Initialization function for FuncAnimation. 
-        It returns the line objects that will be updated.
-        """
         return (
             self.line_pos_ref, self.line_vel_ref, self.line_acc_ref,
             self.line_pos_cur, self.line_vel_cur, self.line_acc_cur,
@@ -316,39 +341,37 @@ class JointTrajectoryAnimator:
         )
 
     def update_plot(self, frame_t):
-        """
-        The update callback for FuncAnimation. Given a time 'frame_t',
-        update all line objects accordingly.
-        """
-        # 1) Plot reference states (where time <= frame_t)
+        # 1) Plot reference states up to frame_t
         if self.tick_times.size > 0:
             mask_tick = (self.tick_times <= frame_t)
             ref_t = self.tick_times[mask_tick]
-            ref_pos = self.tick_joint_pos_ref[mask_tick, self.joint_idx]
-            ref_vel = self.tick_joint_vel_ref[mask_tick, self.joint_idx]
-            ref_acc = self.tick_joint_acc_ref[mask_tick, self.joint_idx]
-            self.line_pos_ref.set_data(ref_t, ref_pos)
-            self.line_vel_ref.set_data(ref_t, ref_vel)
-            self.line_acc_ref.set_data(ref_t, ref_acc)
+
+            pos_ref_dim = self.tick_pos_ref[mask_tick, self.dimension_show]
+            vel_ref_dim = self.tick_vel_ref[mask_tick, self.dimension_show]
+            acc_ref_dim = self.tick_acc_ref[mask_tick, self.dimension_show]
+
+            self.line_pos_ref.set_data(ref_t, pos_ref_dim)
+            self.line_vel_ref.set_data(ref_t, vel_ref_dim)
+            self.line_acc_ref.set_data(ref_t, acc_ref_dim)
         else:
             self.line_pos_ref.set_data([], [])
             self.line_vel_ref.set_data([], [])
             self.line_acc_ref.set_data([], [])
 
-        # 2) Current state (closest tick)
+        # 2) Current state: find closest
         if self.tick_times.size > 0:
             idx_closest = np.argmin(np.abs(self.tick_times - frame_t))
-            cur_pos_val = self.tick_joint_pos_ref[idx_closest, self.joint_idx]
-            cur_vel_val = self.tick_joint_vel_ref[idx_closest, self.joint_idx]
-            cur_acc_val = self.tick_joint_acc_ref[idx_closest, self.joint_idx]
+            pos_closest = self.tick_pos_ref[idx_closest, self.dimension_show]
+            vel_closest = self.tick_vel_ref[idx_closest, self.dimension_show]
+            acc_closest = self.tick_acc_ref[idx_closest, self.dimension_show]
         else:
-            cur_pos_val, cur_vel_val, cur_acc_val = 0, 0, 0
+            pos_closest, vel_closest, acc_closest = 0, 0, 0
 
-        self.line_pos_cur.set_data([frame_t], [cur_pos_val])
-        self.line_vel_cur.set_data([frame_t], [cur_vel_val])
-        self.line_acc_cur.set_data([frame_t], [cur_acc_val])
+        self.line_pos_cur.set_data([frame_t], [pos_closest])
+        self.line_vel_cur.set_data([frame_t], [vel_closest])
+        self.line_acc_cur.set_data([frame_t], [acc_closest])
 
-        # 3) Find the current active plan (start_time <= frame_t)
+        # 3) Active plan
         active_plan = None
         for p in self.plans:
             if p["start_time"] <= frame_t:
@@ -356,7 +379,6 @@ class JointTrajectoryAnimator:
             else:
                 break
 
-        # If no active plan, clear blue/green points
         if active_plan is None:
             self.line_pos_wp.set_data([], [])
             self.line_pos_plan.set_data([], [])
@@ -370,36 +392,46 @@ class JointTrajectoryAnimator:
                 self.line_pos_plan, self.line_vel_plan, self.line_acc_plan
             )
 
-        # 3a) Waypoints: show all for now (or only <= frame_t if needed)
+        # Waypoints
         wp_t_arr = active_plan["waypoints_times"]
-        wp_pos_arr = active_plan["waypoints_positions"]
-        if wp_t_arr.size > 0:
-            self.line_pos_wp.set_data(wp_t_arr, wp_pos_arr[:, self.joint_idx])
+        wp_p_arr = active_plan["waypoints_positions"]
+        if wp_t_arr.size > 0 and wp_p_arr.shape[1] > self.dimension_show:
+            # show all waypoint times for demonstration
+            wp_dim_val = wp_p_arr[:, self.dimension_show]
+            self.line_pos_wp.set_data(wp_t_arr, wp_dim_val)
         else:
             self.line_pos_wp.set_data([], [])
 
-        # 3b) Planned trajectory: only show future (time >= frame_t)
+        # Planned future
         plan_t_arr = active_plan["planned_times"]
         plan_p_arr = active_plan["planned_pos"]
         plan_v_arr = active_plan["planned_vel"]
         plan_a_arr = active_plan["planned_acc"]
 
-        if plan_t_arr.size > 0:
+        if plan_t_arr.size > 0 and plan_p_arr.shape[1] > self.dimension_show:
             mask_future = (plan_t_arr >= frame_t)
             t_display = plan_t_arr[mask_future]
-            p_display = plan_p_arr[mask_future, self.joint_idx]
-            v_display = plan_v_arr[mask_future, self.joint_idx]
-            a_display = plan_a_arr[mask_future, self.joint_idx]
 
-            self.line_pos_plan.set_data(t_display, p_display)
-            self.line_vel_plan.set_data(t_display, v_display)
-            self.line_acc_plan.set_data(t_display, a_display)
+            p_val = plan_p_arr[mask_future, self.dimension_show]
+            self.line_pos_plan.set_data(t_display, p_val)
+
+            if plan_v_arr.shape[1] > self.dimension_show:
+                v_val = plan_v_arr[mask_future, self.dimension_show]
+                self.line_vel_plan.set_data(t_display, v_val)
+            else:
+                self.line_vel_plan.set_data([], [])
+
+            if plan_a_arr.shape[1] > self.dimension_show:
+                a_val = plan_a_arr[mask_future, self.dimension_show]
+                self.line_acc_plan.set_data(t_display, a_val)
+            else:
+                self.line_acc_plan.set_data([], [])
         else:
             self.line_pos_plan.set_data([], [])
             self.line_vel_plan.set_data([], [])
             self.line_acc_plan.set_data([], [])
 
-        # 4) Update x-axis range in a rolling window
+        # 4) rolling window
         self._update_xlim(frame_t)
 
         return (
@@ -410,33 +442,24 @@ class JointTrajectoryAnimator:
         )
 
     def _update_xlim(self, frame_t):
-        """
-        Rolling time window, [frame_t - half_window, frame_t + half_window].
-        This ensures that the red triangle (current time) is in the center,
-        unless it hits 0 or max_time boundaries.
-        """
         left = frame_t - self.half_window
         right = frame_t + self.half_window
-
         if left < 0:
             left = 0
-            right = 2 * self.half_window
+            right = 2*self.half_window
         if right > self.max_time:
             right = self.max_time
-            left = self.max_time - 2 * self.half_window
+            left = self.max_time - 2*self.half_window
             if left < 0:
                 left = 0
                 right = self.max_time
-
         for ax in self.axes:
             ax.set_xlim(left, right)
 
     def run(self):
-        """
-        Creates the FuncAnimation and starts the interactive animation.
-        """
+        """Run the interactive animation via FuncAnimation."""
         self.ani = FuncAnimation(
-            self.fig, 
+            self.fig,
             self.update_plot,
             frames=self.frames,
             init_func=self.init_func,
@@ -448,13 +471,13 @@ class JointTrajectoryAnimator:
         plt.show()
 
 
-# ------------------- Example usage script (if run standalone) -------------------
+# Example usage:
 if __name__ == "__main__":
-    # Instantiate and run
-    animator = JointTrajectoryAnimator(
+    animator = DimensionTrajectoryAnimator(
         data_path="/home/yue/Workspace/wos/tmp/logdata.json",
-        joint_idx=1,         # Visualize joint 
-        half_window=1.0,     # half window
-        slower_factor=1.0    # normal speed
+        space_mode='joint',  # cartesian or joint
+        dimension_show=3,        # z dimension if cartesian
+        half_window=1.0,
+        slower_factor=1.0
     )
     animator.run()
