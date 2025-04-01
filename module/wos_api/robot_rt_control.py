@@ -54,6 +54,20 @@ class robot_rt_control:
             print(f"Robot control, Error occurred: {err}")
         return result
     
+    def rt_move_one_waypoint(self,target,duration):
+        wp = {
+                "position": target,
+                "duration": duration
+            }
+        payload = {"waypoints": [wp]}
+        # json_str = json.dumps(payload, indent=2)
+        # print("DEBUG JSON going to rt_move:\n", json_str)
+        
+        result, err = self.client.run_request(self.robot_id, "rt-move", payload)
+        if err:
+            print(f"Robot control, Error occurred: {err}")
+        return result
+    
     def gripper_fb(self):
         return
     def open_fr3_gripper(self):

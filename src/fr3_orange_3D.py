@@ -65,8 +65,8 @@ class OrangeGraspDemo:
         time.sleep(2)  # Allow time for models/threads to initialize
         
         # 5) Move the robotic arm to its home position
-        self.write_arm_position.rt_movec_soft(self.fr3_home_pos, 3)
-        self.write_arm_position.open_fr3_gripper()
+        self.write_arm_position.rt_move_one_waypoint(self.fr3_home_pos, 3)
+        #self.write_arm_position.open_fr3_gripper()
         print("[OrangeGraspDemo] Homing Arm fr3...")
         time.sleep(3)
 
@@ -106,9 +106,9 @@ class OrangeGraspDemo:
                         self.write_arm_position.close_fr3_gripper()
                         print("[OrangeGraspDemo] Grasp command sent. Waiting for execution...")
                         time.sleep(1.0)
-                        self.write_arm_position.rt_movec_soft(self.fr3_home_pos, 2)
+                        self.write_arm_position.rt_move_one_waypoint(self.fr3_home_pos, 2)
                         break
-                    self.write_arm_position.rt_movec_soft(target, 1.5)
+                    self.write_arm_position.rt_move_one_waypoint(target, 1.5)
                     self.start_time = time.time()
                     print("[OrangeGraspDemo]  Waiting for execution...")
 

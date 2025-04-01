@@ -258,7 +258,6 @@ class DimensionTrajectoryAnimator:
                     self.all_acc_vals.extend(plan_a_arr[:, self.dimension_show])
 
         self.max_time = max(self.max_t_tick, self.max_time_val)
-
         if not self.all_pos_vals:
             self.all_pos_vals = [0.]
         if not self.all_vel_vals:
@@ -301,10 +300,12 @@ class DimensionTrajectoryAnimator:
         (self.line_vel_ref,) = self.axes[1].plot([], [], 'k.', label='Ref Vel')
         (self.line_acc_ref,) = self.axes[2].plot([], [], 'k.', label='Ref Acc')
 
-        (self.line_pos_wp,)  = self.axes[0].plot([], [], 'bo', label='Waypoints')
         (self.line_pos_plan,) = self.axes[0].plot([], [], 'g.', label='Plan Pos')
         (self.line_vel_plan,) = self.axes[1].plot([], [], 'g.', label='Plan Vel')
         (self.line_acc_plan,) = self.axes[2].plot([], [], 'g.', label='Plan Acc')
+        
+        (self.line_pos_wp,)  = self.axes[0].plot([], [], 'bo', label='Waypoints')
+
 
         (self.line_pos_cur,) = self.axes[0].plot([], [], 'r^', label='Current Pos', markersize=10)
         (self.line_vel_cur,) = self.axes[1].plot([], [], 'r^', label='Current Vel', markersize=10)
@@ -477,7 +478,7 @@ if __name__ == "__main__":
         data_path="/home/yue/Workspace/wos/tmp/logdata.json",
         space_mode='joint',  # cartesian or joint
         dimension_show=3,        # z dimension if cartesian
-        half_window=1.0,
+        half_window=2.0,
         slower_factor=1.0
     )
     animator.run()

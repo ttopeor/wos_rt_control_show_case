@@ -45,11 +45,9 @@ class RTMoveSTest:
         center_y = home_y
 
         theta = 0.0
+        dtheta = 0.3  # rad
 
-        peroid = 1.0/10.0
-        #peroid = 0.2
-        dtheta = 2.0 * peroid  # rad
-        
+        peroid = 0.4
         try:
             while True:
                 x = center_x + radius * np.cos(theta)
@@ -57,22 +55,10 @@ class RTMoveSTest:
 
                 target = [x, y, home_z, roll, pitch, yaw]
 
-                new_wp = {
-                    "position": target,
-                    "duration": peroid
-                }
-
-                if len(self.waypoints) < 5:
-                    self.waypoints.append(new_wp)
-                else:
-                    # Maintain fixed length = 5
-                    self.waypoints.pop(0)  # remove oldest
-                    self.waypoints.append(new_wp)
-                    
-                    self.write_arm_position.rt_move(self.waypoints)
+                self.write_arm_position.rt_move_one_waypoint(target,peroid)
 
                 theta += dtheta
-                time.sleep(peroid)
+                time.sleep(peroid/2)
 
         except KeyboardInterrupt:
             print("Ctrl + C received. Exiting...")
