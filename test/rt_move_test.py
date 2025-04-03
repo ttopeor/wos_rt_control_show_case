@@ -46,10 +46,9 @@ class RTMoveSTest:
 
         theta = 0.0
 
-        peroid = 1.0/10.0
-        #peroid = 0.2
+        peroid = 1.0/30.0
         dtheta = 2.0 * peroid  # rad
-        
+        buffer_len = 5
         try:
             while True:
                 x = center_x + radius * np.cos(theta)
@@ -62,10 +61,10 @@ class RTMoveSTest:
                     "duration": peroid
                 }
 
-                if len(self.waypoints) < 5:
+                if len(self.waypoints) < buffer_len:
                     self.waypoints.append(new_wp)
                 else:
-                    # Maintain fixed length = 5
+                    # Maintain fixed length
                     self.waypoints.pop(0)  # remove oldest
                     self.waypoints.append(new_wp)
                     

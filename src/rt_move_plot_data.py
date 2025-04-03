@@ -8,7 +8,7 @@ Example usage:
         data_path="/home/yue/Workspace/wos/tmp/logdata.json",
         space_mode='cartesian',   # 'joint' or 'cartesian'
         dimension_show=2,         # If cartesian: 0=x,1=y,2=z,3=roll,4=pitch,5=yaw
-                                  # If joint: 0~N for the joint index
+                                  # If 'joint': 0..N for the joint index
         half_window=0.4,
         slower_factor=1.0,
     )
@@ -41,9 +41,6 @@ class DimensionTrajectoryAnimator:
           dimension_show = 0..5 => x=0,y=1,z=2,roll=3,pitch=4,yaw=5
           => read from 'current_cartesian_state_ref/current_cartesian_state'
              'request_waypoints', 'planned_cartesian_trajectory'
-
-    We'll treat dimension_show as "which index in the position/velocity/acceleration arrays"
-    to display.
     """
 
     def __init__(self,
@@ -60,7 +57,7 @@ class DimensionTrajectoryAnimator:
         space_mode : str
             'joint' or 'cartesian'
         dimension_show : int
-            Which dimension to display. 
+            Which dimension to display.
             If 'joint' => dimension_show is the joint index (0..6 or so).
             If 'cartesian' => 0..5 => x=0,y=1,z=2,roll=3,pitch=4,yaw=5
         half_window : float
@@ -96,6 +93,7 @@ class DimensionTrajectoryAnimator:
         # Prepare frames
         self._prepare_animation_frames()
 
+        self.anim_running = True
         self.ani = None
 
     def _parse_tick_data(self):
@@ -133,7 +131,6 @@ class DimensionTrajectoryAnimator:
             self.tick_acc_cur.append(cur_state["acceleration"])
 
         self.tick_times = np.array(self.tick_times)
-
         self.tick_pos_ref = np.array(self.tick_pos_ref)
         self.tick_vel_ref = np.array(self.tick_vel_ref)
         self.tick_acc_ref = np.array(self.tick_acc_ref)
@@ -257,7 +254,8 @@ class DimensionTrajectoryAnimator:
                 if plan_a_arr.shape[1] > self.dimension_show:
                     self.all_acc_vals.extend(plan_a_arr[:, self.dimension_show])
 
-        self.max_time = max(self.max_t_tick, self.max_time_val)
+        self.max_time = self.max_time_val
+
         if not self.all_pos_vals:
             self.all_pos_vals = [0.]
         if not self.all_vel_vals:
@@ -305,7 +303,6 @@ class DimensionTrajectoryAnimator:
         (self.line_acc_plan,) = self.axes[2].plot([], [], 'g.', label='Plan Acc')
         
         (self.line_pos_wp,)  = self.axes[0].plot([], [], 'bo', label='Waypoints')
-
 
         (self.line_pos_cur,) = self.axes[0].plot([], [], 'r^', label='Current Pos', markersize=10)
         (self.line_vel_cur,) = self.axes[1].plot([], [], 'r^', label='Current Vel', markersize=10)
@@ -359,18 +356,27 @@ class DimensionTrajectoryAnimator:
             self.line_vel_ref.set_data([], [])
             self.line_acc_ref.set_data([], [])
 
-        # 2) Current state: find closest
+        # 2) Current states (the last available tick up to frame_t)
         if self.tick_times.size > 0:
-            idx_closest = np.argmin(np.abs(self.tick_times - frame_t))
-            pos_closest = self.tick_pos_ref[idx_closest, self.dimension_show]
-            vel_closest = self.tick_vel_ref[idx_closest, self.dimension_show]
-            acc_closest = self.tick_acc_ref[idx_closest, self.dimension_show]
-        else:
-            pos_closest, vel_closest, acc_closest = 0, 0, 0
+            mask_tick = (self.tick_times <= frame_t)
+            if np.any(mask_tick):
+                idx_last = np.where(mask_tick)[0][-1]
+                pos_last = self.tick_pos_cur[idx_last, self.dimension_show]
+                vel_last = self.tick_vel_cur[idx_last, self.dimension_show]
+                acc_last = self.tick_acc_cur[idx_last, self.dimension_show]
 
-        self.line_pos_cur.set_data([frame_t], [pos_closest])
-        self.line_vel_cur.set_data([frame_t], [vel_closest])
-        self.line_acc_cur.set_data([frame_t], [acc_closest])
+                t_last = self.tick_times[idx_last]
+                self.line_pos_cur.set_data([t_last], [pos_last])
+                self.line_vel_cur.set_data([t_last], [vel_last])
+                self.line_acc_cur.set_data([t_last], [acc_last])
+            else:
+                self.line_pos_cur.set_data([], [])
+                self.line_vel_cur.set_data([], [])
+                self.line_acc_cur.set_data([], [])
+        else:
+            self.line_pos_cur.set_data([], [])
+            self.line_vel_cur.set_data([], [])
+            self.line_acc_cur.set_data([], [])
 
         # 3) Active plan
         active_plan = None
@@ -457,6 +463,22 @@ class DimensionTrajectoryAnimator:
         for ax in self.axes:
             ax.set_xlim(left, right)
 
+    def _on_key_press(self, event):
+
+        if event.key == 'p':
+            if self.anim_running:
+                self.ani.event_source.stop()
+                self.anim_running = False
+            else:
+                self.ani.event_source.start()
+                self.anim_running = True
+
+        elif event.key == 'r':
+            self.ani.event_source.stop()
+            self.ani.frame_seq = self.ani.new_frame_seq()
+            self.anim_running = True
+            self.ani.event_source.start()
+
     def run(self):
         """Run the interactive animation via FuncAnimation."""
         self.ani = FuncAnimation(
@@ -468,6 +490,8 @@ class DimensionTrajectoryAnimator:
             interval=self.animation_interval,
             repeat=False
         )
+        self.fig.canvas.mpl_connect('key_press_event', self._on_key_press)
+
         plt.tight_layout()
         plt.show()
 
@@ -477,8 +501,8 @@ if __name__ == "__main__":
     animator = DimensionTrajectoryAnimator(
         data_path="/home/yue/Workspace/wos/tmp/logdata.json",
         space_mode='joint',  # cartesian or joint
-        dimension_show=3,        # z dimension if cartesian
-        half_window=2.0,
+        dimension_show=3,    # e.g. joint index=3
+        half_window=1.0,
         slower_factor=1.0
     )
     animator.run()
