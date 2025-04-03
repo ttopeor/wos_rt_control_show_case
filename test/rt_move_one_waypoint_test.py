@@ -45,9 +45,9 @@ class RTMoveSTest:
         center_y = home_y
 
         theta = 0.0
-        dtheta = 0.3  # rad
 
-        peroid = 0.4
+        peroid = 0.5
+        dtheta = 2.0 * peroid
         try:
             while True:
                 x = center_x + radius * np.cos(theta)

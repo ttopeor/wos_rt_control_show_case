@@ -254,7 +254,7 @@ class DimensionTrajectoryAnimator:
                 if plan_a_arr.shape[1] > self.dimension_show:
                     self.all_acc_vals.extend(plan_a_arr[:, self.dimension_show])
 
-        self.max_time = self.max_time_val
+        self.max_time = self.max_time_val + 0.1
 
         if not self.all_pos_vals:
             self.all_pos_vals = [0.]
@@ -361,9 +361,9 @@ class DimensionTrajectoryAnimator:
             mask_tick = (self.tick_times <= frame_t)
             if np.any(mask_tick):
                 idx_last = np.where(mask_tick)[0][-1]
-                pos_last = self.tick_pos_cur[idx_last, self.dimension_show]
-                vel_last = self.tick_vel_cur[idx_last, self.dimension_show]
-                acc_last = self.tick_acc_cur[idx_last, self.dimension_show]
+                pos_last = self.tick_pos_ref[idx_last, self.dimension_show]
+                vel_last = self.tick_vel_ref[idx_last, self.dimension_show]
+                acc_last = self.tick_acc_ref[idx_last, self.dimension_show]
 
                 t_last = self.tick_times[idx_last]
                 self.line_pos_cur.set_data([t_last], [pos_last])

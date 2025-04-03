@@ -46,7 +46,7 @@ class RTMoveSTest:
 
         theta = 0.0
 
-        peroid = 1.0/30.0
+        peroid = 1.0/5.0
         dtheta = 2.0 * peroid  # rad
         buffer_len = 5
         try:
