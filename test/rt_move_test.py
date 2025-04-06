@@ -51,7 +51,7 @@ class RTMoveSTest:
 
         theta = 0.0
 
-        period = 1.0/30.0
+        period = 1.0/20.0
         dtheta = 2.0 * period  # rad
         buffer_len = 5
 

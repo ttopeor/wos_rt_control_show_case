@@ -1,25 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-"""
-Example usage:
-
-    animator = DimensionTrajectoryAnimator(
-        data_path="/home/yue/Workspace/wos/tmp/logdata.json",
-        space_mode='cartesian',   # 'joint' or 'cartesian'
-        dimension_show=2,         # If cartesian: 0=x,1=y,2=z,3=roll,4=pitch,5=yaw
-                                  # If 'joint': 0..N for the joint index
-        half_window=0.4,
-        slower_factor=1.0,
-    )
-    animator.run()
-"""
-
 import json
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
-
 
 class DimensionTrajectoryAnimator:
     """
@@ -90,10 +75,14 @@ class DimensionTrajectoryAnimator:
         # Prepare figure & lines
         self._init_figure()
 
-        # Prepare frames
+        # Prepare frames (times)
         self._prepare_animation_frames()
 
+        # 是否正在播放动画
         self.anim_running = True
+        # 当前帧索引（给手动前/后翻页用）
+        self.current_frame_idx = 0
+
         self.ani = None
 
     def _parse_tick_data(self):
@@ -211,7 +200,6 @@ class DimensionTrajectoryAnimator:
 
         # Ticks
         if len(self.ticks) > 0:
-            # Only gather dimension_show
             pos_ref_dim = self.tick_pos_ref[:, self.dimension_show]
             pos_cur_dim = self.tick_pos_cur[:, self.dimension_show]
             vel_ref_dim = self.tick_vel_ref[:, self.dimension_show]
@@ -244,7 +232,6 @@ class DimensionTrajectoryAnimator:
             plan_p_arr = plan["planned_pos"]
             plan_v_arr = plan["planned_vel"]
             plan_a_arr = plan["planned_acc"]
-
             if plan_t_arr.size > 0:
                 self.max_time_val = max(self.max_time_val, plan_t_arr.max())
                 if plan_p_arr.shape[1] > self.dimension_show:
@@ -301,12 +288,14 @@ class DimensionTrajectoryAnimator:
         (self.line_pos_plan,) = self.axes[0].plot([], [], 'g.', label='Plan Pos')
         (self.line_vel_plan,) = self.axes[1].plot([], [], 'g.', label='Plan Vel')
         (self.line_acc_plan,) = self.axes[2].plot([], [], 'g.', label='Plan Acc')
-        
+
         (self.line_pos_wp,)  = self.axes[0].plot([], [], 'bo', label='Waypoints')
 
         (self.line_pos_cur,) = self.axes[0].plot([], [], 'r^', label='Current Pos', markersize=10)
         (self.line_vel_cur,) = self.axes[1].plot([], [], 'r^', label='Current Vel', markersize=10)
         (self.line_acc_cur,) = self.axes[2].plot([], [], 'r^', label='Current Acc', markersize=10)
+
+        (self.line_pos_cur_track,) = self.axes[0].plot([], [], '--r', label='Current Pos Track')
 
         # Set axis range
         self.axes[0].set_xlim(0, self.max_time + 0.1)
@@ -333,12 +322,17 @@ class DimensionTrajectoryAnimator:
     def init_func(self):
         return (
             self.line_pos_ref, self.line_vel_ref, self.line_acc_ref,
+            self.line_pos_cur_track,
             self.line_pos_cur, self.line_vel_cur, self.line_acc_cur,
             self.line_pos_wp,
             self.line_pos_plan, self.line_vel_plan, self.line_acc_plan
         )
 
     def update_plot(self, frame_t):
+        """
+        Called by FuncAnimation or manually from _on_key_press to update the plot
+        at a specific time frame_t.
+        """
         # 1) Plot reference states up to frame_t
         if self.tick_times.size > 0:
             mask_tick = (self.tick_times <= frame_t)
@@ -359,9 +353,14 @@ class DimensionTrajectoryAnimator:
         # 2) Current states (the last available tick up to frame_t)
         if self.tick_times.size > 0:
             mask_tick = (self.tick_times <= frame_t)
+            ref_t = self.tick_times[mask_tick]
+
+            pos_cur_dim_all = self.tick_pos_cur[mask_tick, self.dimension_show]
+            self.line_pos_cur_track.set_data(ref_t, pos_cur_dim_all)
+
             if np.any(mask_tick):
                 idx_last = np.where(mask_tick)[0][-1]
-                pos_last = self.tick_pos_ref[idx_last, self.dimension_show]
+                pos_last = self.tick_pos_cur[idx_last, self.dimension_show]
                 vel_last = self.tick_vel_ref[idx_last, self.dimension_show]
                 acc_last = self.tick_acc_ref[idx_last, self.dimension_show]
 
@@ -374,6 +373,8 @@ class DimensionTrajectoryAnimator:
                 self.line_vel_cur.set_data([], [])
                 self.line_acc_cur.set_data([], [])
         else:
+            # 若没有ticks
+            self.line_pos_cur_track.set_data([], [])
             self.line_pos_cur.set_data([], [])
             self.line_vel_cur.set_data([], [])
             self.line_acc_cur.set_data([], [])
@@ -403,7 +404,6 @@ class DimensionTrajectoryAnimator:
         wp_t_arr = active_plan["waypoints_times"]
         wp_p_arr = active_plan["waypoints_positions"]
         if wp_t_arr.size > 0 and wp_p_arr.shape[1] > self.dimension_show:
-            # show all waypoint times for demonstration
             wp_dim_val = wp_p_arr[:, self.dimension_show]
             self.line_pos_wp.set_data(wp_t_arr, wp_dim_val)
         else:
@@ -453,10 +453,10 @@ class DimensionTrajectoryAnimator:
         right = frame_t + self.half_window
         if left < 0:
             left = 0
-            right = 2*self.half_window
+            right = 2 * self.half_window
         if right > self.max_time:
             right = self.max_time
-            left = self.max_time - 2*self.half_window
+            left = self.max_time - 2 * self.half_window
             if left < 0:
                 left = 0
                 right = self.max_time
@@ -464,7 +464,7 @@ class DimensionTrajectoryAnimator:
             ax.set_xlim(left, right)
 
     def _on_key_press(self, event):
-
+        # p => pause/play
         if event.key == 'p':
             if self.anim_running:
                 self.ani.event_source.stop()
@@ -473,11 +473,38 @@ class DimensionTrajectoryAnimator:
                 self.ani.event_source.start()
                 self.anim_running = True
 
+        # r => restart from beginning
         elif event.key == 'r':
             self.ani.event_source.stop()
-            self.ani.frame_seq = self.ani.new_frame_seq()
             self.anim_running = True
+            self.current_frame_idx = 0
+            # 重新设置动画序列
+            self.ani.frame_seq = self.ani.new_frame_seq()
             self.ani.event_source.start()
+
+        # left => go to previous frame manually
+        elif event.key == 'left':
+            # 如果在播放，先暂停
+            if self.anim_running:
+                self.ani.event_source.stop()
+                self.anim_running = False
+
+            self.current_frame_idx = max(0, self.current_frame_idx - 1)
+            frame_t = self.frames[self.current_frame_idx]
+            self.update_plot(frame_t)
+            plt.draw()
+
+        # right => go to next frame manually
+        elif event.key == 'right':
+            # 如果在播放，先暂停
+            if self.anim_running:
+                self.ani.event_source.stop()
+                self.anim_running = False
+
+            self.current_frame_idx = min(self.num_frames - 1, self.current_frame_idx + 1)
+            frame_t = self.frames[self.current_frame_idx]
+            self.update_plot(frame_t)
+            plt.draw()
 
     def run(self):
         """Run the interactive animation via FuncAnimation."""
@@ -502,7 +529,7 @@ if __name__ == "__main__":
         data_path="/home/yue/Workspace/wos/tmp/logdata.json",
         space_mode='joint',  # cartesian or joint
         dimension_show=3,    # e.g. joint index=3
-        half_window=1.0,
+        half_window=2.0,
         slower_factor=1.0
     )
     animator.run()
