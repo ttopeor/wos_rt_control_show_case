@@ -8,6 +8,41 @@ encoder:
   - -1
 
 rs_D405:
+  front_camera_serial: '218622272801'
+  back_camera_serial: '218622273578'
+
+  mount_transfer_dual_front:
+  - -0.0698
+  - -0.08253
+  - -0.10982 
+  - -0.4911107
+  - 0.3792451
+  - 2.5360957
+
+  target_transfer_dual_front:
+  - 0.0
+  - 0.0
+  - 0.0
+  - -0.6108652
+  - 0.00505557
+  - -2.4399703
+
+  mount_transfer_dual_back:
+  - 0.0698
+  - 0.08252
+  - -0.10982 
+  - 0.4911107
+  - -0.3792451
+  - -0.605497
+
+  target_transfer_dual_back:
+  - 0.0
+  - 0.0
+  - 0.0
+  - -0.6108652
+  - 0.0
+  - 0.7016224
+
   target_transfer_curve:
   - 0.0
   - 0.0
@@ -16,33 +51,36 @@ rs_D405:
   - 0.0
   - 0.0
   mount_transfer_curve:
-  - -0.009
+  - 0.009
   - -0.09943
   - -0.16115 
   - -0.349066
   - 0.0
   - 0.0
   mount_transfer_stright:
-  - -0.009
+  - 0.009
   - -0.06995
   - -0.16802
   - 0.0
   - 0.0
   - 0.0
   mount_transfer_graspnet_stright:
-  - -0.009
+  - 0.009
   - -0.06995
   - -0.16802
   - -0.0
   - 0.0
   - 3.1415926
   mount_transfer_graspnet_curve:
-  - -0.009
+  - 0.009
   - -0.09943
   - -0.16115 
   - -0.349066
   - 0.0
   - 3.1415926
+
+  
+
 
 delta6_lite6_port_name: /dev/ttyACM0
 
@@ -51,9 +89,9 @@ lite6_resource_id: component/05293420-caba-463c-b0a2-0681047250fa
 wos_end_point: localhost:15117
 
 fr3_home_pos_stright:
-- 0.40
+- 0.42
 - 0.00
-- 0.46
+- 0.43
 - 3.1415926
 - 0.0
 - 1.5707963

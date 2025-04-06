@@ -65,7 +65,7 @@ class OrangeGraspDemo:
         time.sleep(2)  # Allow time for models/threads to initialize
         
         # 5) Move the robotic arm to its home position
-        self.write_arm_position.rt_move_one_waypoint(self.fr3_home_pos, 3)
+        self.write_arm_position.rt_movec_soft(self.fr3_home_pos, 3)
         self.write_arm_position.open_fr3_gripper()
         print("[OrangeGraspDemo] Homing Arm fr3...")
         time.sleep(3)
@@ -74,10 +74,6 @@ class OrangeGraspDemo:
         print("[OrangeGraspDemo] Setup completed.")
         self.start_time = time.time()
         self.grasp_count = 0
-        self.period = 10
-        self.last_obj_coordinate = [0,0,0,0,0,0]
-        self.return_time = time.time()
-        self.first_target = False
     def run(self):
         """
         Continuously executes the object detection, affordance estimation, 
@@ -98,52 +94,41 @@ class OrangeGraspDemo:
                 camera_target = self.get_camera_target_from_solo_v2()
                 if camera_target is None:
                     obj_not_found_time = time.time() - self.start_time
-                    distance_to_home = compute_6d_distance(arm_pos_reading, self.fr3_home_pos)
-                    if distance_to_home >= 0.02 and obj_not_found_time > 2:
+                    distance = compute_6d_distance(arm_pos_reading, self.fr3_home_pos)
+                    if distance >= 0.02 and obj_not_found_time > 2:
+                        print("Distance:", distance)
                         self.grasp_count = 0
-                        self.write_arm_position.rt_move_one_waypoint(self.fr3_home_pos, 4)
+                        self.write_arm_position.rt_movec_soft(self.fr3_home_pos, 4)
                         self.start_time = time.time()
-                        print("[OrangeGraspDemo] Going home. Looking for object...")
+                        print("[OrangeGraspDemo]  Waiting for execution...")
                     continue
                 
                 self.obj_found_time = time.time()
                     
                 target = from_camera_target_to_ee_target(camera_target, arm_pos_reading, self.from_ee_to_cam_trans, self.from_cam_to_ee_target_trans).tolist()
-                if self.first_target is False:
-                    self.last_obj_coordinate = target
-                    self.first_target = True
+
                 # (E) Send movement command to the robotic arm
-                update_period = self.period/10.0
-                if ((time.time() - self.start_time) > update_period) and (time.time()-self.return_time>1): # Waiting for arm execution, second 1
+                if (time.time() - self.start_time) > 0.5: # Waiting for arm execution, second 1
                     distance = compute_6d_distance(arm_pos_reading, target)
                     print("Distance:", distance)
-                    target_global_diff =  compute_6d_distance(self.last_obj_coordinate, target)
-                    print("Target moving speed", target_global_diff/(update_period))
-
                     if distance<= 0.005:
                         self.grasp_count += 1
-                        if self.grasp_count >=10:
+                        if self.grasp_count >=5:
                             self.write_arm_position.close_fr3_gripper()
                             print("[OrangeGraspDemo] Grasp command sent. Waiting for execution...")
                             time.sleep(1.0)
-                            self.write_arm_position.rt_move_one_waypoint(self.fr3_home_pos, 4)
+                            self.write_arm_position.rt_movec_soft(self.fr3_home_pos, 4)
                             self.grasp_count = 0
                             break
-                    elif target_global_diff/update_period > 0.05:
-                        print("[OrangeGraspDemo] Object moving... Going home.")
-                        self.grasp_count = 0
-                        self.write_arm_position.rt_move_one_waypoint(self.fr3_home_pos, 4)
-                        self.return_time = time.time()
-                        self.start_time = time.time()
+                    
                     else:
-                        self.period = distance/0.08
-                        if self.period < 1.0:
-                            self.period = 1.0
+                        duration = distance/0.06
+                        if duration<=1:
+                            duration = 1
                         self.grasp_count = 0
-                        self.write_arm_position.rt_move_one_waypoint(target, self.period)
+                        self.write_arm_position.rt_movec_soft(target, duration)
                         self.start_time = time.time()
                         print("[OrangeGraspDemo]  Waiting for execution...")
-                    self.last_obj_coordinate = target
 
 
         except KeyboardInterrupt:
@@ -196,7 +181,7 @@ class OrangeGraspDemo:
         else:
             cv2.imshow("SOLOv2 Mask Overlay", vis_img)
             cv2.waitKey(1)
-            #print("[get_camera_target_from_solo_v2] No objects found by SOLOv2.")
+            print("[get_camera_target_from_solo_v2] No objects found by SOLOv2.")
             return None
 
         cv2.imshow("SOLOv2 Mask Overlay", vis_img)

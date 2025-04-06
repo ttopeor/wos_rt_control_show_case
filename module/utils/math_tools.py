@@ -220,6 +220,16 @@ def unwrap_angle(angle_now, angle_prev):
     
     return angle_prev + delta
 
+def average_angle(a, b):
+    diff = b - a
+    diff = (diff + math.pi) % (2 * math.pi) - math.pi
+    
+    mid = a + diff / 2.0
+    
+    mid = (mid + math.pi) % (2 * math.pi) - math.pi
+    return mid
+
+
 if __name__ == "__main__":
 
     measured_force_moment_A = [1, 0.0, 0.0, 0.0, 1.0, 0.0]

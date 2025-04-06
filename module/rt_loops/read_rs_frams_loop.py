@@ -17,7 +17,7 @@ class ReadRSFrameLoop:
     after the pipeline starts, so they can be accessed externally.
     """
 
-    def __init__(self, freq=30):
+    def __init__(self, freq=30,serial_number=None):
         """
         :param freq: The desired frames per second for RealSense streaming (default 30).
                      This sets the stream config, e.g. (640x480 at 'freq' Hz).
@@ -33,6 +33,11 @@ class ReadRSFrameLoop:
 
         self.pipeline = rs.pipeline()
         self.config = rs.config()
+        
+        if serial_number is not None:
+            self.config.enable_device(serial_number)
+
+
         self.depth_scale = None  
         self.intrinsic_matrix = None  
         self.intrinsic = None
