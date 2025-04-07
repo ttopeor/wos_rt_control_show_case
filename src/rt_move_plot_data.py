@@ -527,9 +527,10 @@ class DimensionTrajectoryAnimator:
 if __name__ == "__main__":
     animator = DimensionTrajectoryAnimator(
         data_path="/home/yue/Workspace/wos/tmp/logdata.json",
+        #data_path="/home/yue/Workspace/wos_rt_control_show_case/data/ybot.json",
         space_mode='joint',  # cartesian or joint
         dimension_show=3,    # e.g. joint index=3
-        half_window=2.0,
+        half_window=3.0,
         slower_factor=1.0
     )
     animator.run()
