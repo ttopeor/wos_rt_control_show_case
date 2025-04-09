@@ -29,12 +29,13 @@ class MainLoop(RTLoop):
         
         lite6_home_pos = config["lite6_home_pos"]
         lite6_id = config["lite6_resource_id"]
+
         wos_endpoint = config["wos_end_point"]
         delta6_lite6_port_name = config["delta6_lite6_port_name"]
         encoder_dir = config["encoder"]["dir"]
 
-        #adm_config = config["admittance_control"]
-        adm_config = config["admittance_control_float"]
+        #adm_config = config["admittance_control_stable"]
+        adm_config = config["admittance_control_stable"]
         
         M = adm_config["M"] 
         B = adm_config["B"]  
@@ -95,7 +96,6 @@ class MainLoop(RTLoop):
         dt = 1.0 / self.freq
         
         delta6_end_pose_diff = self.admittance6d.update(force_error, dt)
-        print(delta6_end_pose_diff)
 
         delta6_end_pose_target = np.array(delta6_pose_reading) + np.array(delta6_end_pose_diff)
 

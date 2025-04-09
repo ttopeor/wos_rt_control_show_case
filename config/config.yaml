@@ -84,7 +84,7 @@ rs_D405:
 
 delta6_lite6_port_name: /dev/ttyACM0
 
-fr3_resource_id: component/6b15904e-4296-43d6-aa55-2477d1fce382
+fr3_resource_id: component/6b805274-97a9-425c-b103-2505f5490788
 lite6_resource_id: component/05293420-caba-463c-b0a2-0681047250fa
 wos_end_point: localhost:15117
 
@@ -96,13 +96,21 @@ fr3_home_pos_stright:
 - 0.0
 - 1.5707963
 
-fr3_home_pos:
-- 0.45282
+fr3_home_pos_slop:
+- 0.42
 - 0.00
-- 0.58
-- 3.14098
-- 0.31183
-- 1.59027
+- 0.49
+- 3.1415926
+- 0.28
+- 1.5707963
+
+fr3_home_pos:
+- 0.31
+- 0.00
+- 0.46
+- 3.1415926
+- 0.0
+- 1.5707963
 
 lite6_home_pos:
 - 0.24
@@ -210,6 +218,29 @@ admittance_control:
     - 0.015
     - 0.015
     - 0.004
+  K: 
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+
+admittance_control_stable:
+  M: 
+    - 0.8
+    - 0.8
+    - 0.8
+    - 0.006
+    - 0.006
+    - 0.0016
+  B: 
+    - 6.0
+    - 6.0
+    - 4.0
+    - 0.03
+    - 0.03
+    - 0.008
   K: 
     - 0.0
     - 0.0

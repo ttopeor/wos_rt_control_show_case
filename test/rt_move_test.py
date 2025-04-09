@@ -16,7 +16,7 @@ class RTMoveSTest:
             print("[OrangeGraspDemo] Configuration file not found:", e)
             raise
 
-        self.fr3_home_pos = self.config["fr3_home_pos"]
+        self.fr3_home_pos = self.config["fr3_home_pos_stright"]
         fr3_id = self.config["fr3_resource_id"]
         wos_endpoint = self.config["wos_end_point"]
         print("WOS Endpoint:", wos_endpoint)
