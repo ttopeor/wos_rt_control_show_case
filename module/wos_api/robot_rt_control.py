@@ -1,5 +1,6 @@
 import json
 import logging
+import threading
 from wos_api.connection import CreateWSClient
 
 
@@ -82,3 +83,32 @@ class robot_rt_control:
             print(f"Robot control, Error occurred: {err}")
         return result
     
+    
+    def open_fr3_gripper_async(self, width=0.08, speed=0.1):
+
+        def _task():
+            result, err = self.client.run_action(
+                self.robot_id + "/action",
+                "open-gripper",
+                {"width": width, "speed": speed},
+                self.gripper_fb()
+            )
+            if err:
+                print(f"[open_fr3_gripper_async] Error: {err}")
+
+        t = threading.Thread(target=_task, daemon=True)
+        t.start()
+
+    def close_fr3_gripper_async(self, width=0.065, speed=0.1, force=0.1, epsilon=0.04):
+        def _task():
+            result, err = self.client.run_action(
+                self.robot_id + "/action",
+                "close-gripper",
+                {"width": width, "speed": speed, "force": force, "epsilon": epsilon},
+                self.gripper_fb()
+            )
+            if err:
+                print(f"[close_fr3_gripper_async] Error: {err}")
+
+        t = threading.Thread(target=_task, daemon=True)
+        t.start()

@@ -254,6 +254,34 @@ class DimensionTrajectoryAnimator:
         self.vel_min, self.vel_max = self._expand_range(min(self.all_vel_vals), max(self.all_vel_vals))
         self.acc_min, self.acc_max = self._expand_range(min(self.all_acc_vals), max(self.all_acc_vals))
 
+        self.vel_min = -0.05
+        self.vel_max = 0.05
+        
+        # print(self.vel_min, self.vel_max)
+        # self.all_vel_times = []
+        # vel_ref_dim = self.tick_vel_ref[:, self.dimension_show]
+        # vel_cur_dim = self.tick_vel_cur[:, self.dimension_show]
+
+        # for i, v in enumerate(vel_ref_dim):
+        #     self.all_vel_vals.append(v)
+        #     self.all_vel_times.append(self.tick_times[i])
+
+        # for i, v in enumerate(vel_cur_dim):
+        #     self.all_vel_vals.append(v)
+        #     self.all_vel_times.append(self.tick_times[i])
+    
+        # if len(self.all_vel_vals) > 0:
+        #     vmin_raw = min(self.all_vel_vals)
+        #     vmax_raw = max(self.all_vel_vals)
+
+        #     idx_min = self.all_vel_vals.index(vmin_raw)
+        #     idx_max = self.all_vel_vals.index(vmax_raw)
+
+        #     t_min = self.all_vel_times[idx_min]
+        #     t_max = self.all_vel_times[idx_max]
+
+        #     print(f"[Velocity] min={vmin_raw:.3f} at t={t_min:.3f}, max={vmax_raw:.3f} at t={t_max:.3f}")
+
     def _expand_range(self, vmin, vmax, ratio=0.05):
         if vmin == vmax:
             return (vmin - 1, vmax + 1)
@@ -315,7 +343,7 @@ class DimensionTrajectoryAnimator:
         leg2.set_zorder(12)
 
     def _prepare_animation_frames(self):
-        self.num_frames = 300
+        self.num_frames = 1000
         self.frames = np.linspace(0, self.max_time, self.num_frames)
         self.animation_interval = int(50 * self.slower_factor)
 
@@ -530,7 +558,7 @@ if __name__ == "__main__":
         #data_path="/home/yue/Workspace/wos_rt_control_show_case/data/ybot.json",
         space_mode='joint',  # cartesian or joint
         dimension_show=1,    # e.g. joint index=3
-        half_window=3.0,
+        half_window=1.0,
         slower_factor=1.0
     )
     animator.run()

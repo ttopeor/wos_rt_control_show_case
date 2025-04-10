@@ -6,7 +6,7 @@ setup(
     packages=find_packages('module'),   
     package_dir={'': 'module'},        
     install_requires=[
-        'pyrealsense2', 'openmim', 'torch', 'opencv-python','mmdet', 'apscheduler', 'websocket-client', 'pyyaml'
+        'pyrealsense2', 'openmim', 'torch', 'opencv-python','mmdet', 'apscheduler', 'websocket-client', 'pyyaml', 'pygame'
     ],
     author="Yue Feng",
     author_email="ttopeor@gmail.com",
