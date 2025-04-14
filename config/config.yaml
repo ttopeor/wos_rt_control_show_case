@@ -86,6 +86,8 @@ delta6_lite6_port_name: /dev/ttyACM0
 
 fr3_resource_id: component/6b805274-97a9-425c-b103-2505f5490788
 lite6_resource_id: component/05293420-caba-463c-b0a2-0681047250fa
+lite6_coodinate_resource_id: component/50ef9dc7-afbc-487b-8b8d-bd4cef397857
+
 wos_end_point: localhost:15117
 
 fr3_home_pos_stright:
@@ -134,6 +136,13 @@ lite6_pos_1:
 - 3.1415926
 - 0.0
 - 0.0
+lite6_pos_2:
+- 0.28
+- -0.20
+- 0.35
+- 3.1415926
+- 0.0
+- -1.5707963
 
 fr3_cov:
 - - 0.0003496182840359311

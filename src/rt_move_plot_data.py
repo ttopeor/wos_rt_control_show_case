@@ -254,8 +254,8 @@ class DimensionTrajectoryAnimator:
         self.vel_min, self.vel_max = self._expand_range(min(self.all_vel_vals), max(self.all_vel_vals))
         self.acc_min, self.acc_max = self._expand_range(min(self.all_acc_vals), max(self.all_acc_vals))
 
-        self.vel_min = -0.05
-        self.vel_max = 0.05
+        # self.vel_min = -0.05
+        # self.vel_max = 0.05
         
         # print(self.vel_min, self.vel_max)
         # self.all_vel_times = []
@@ -343,7 +343,7 @@ class DimensionTrajectoryAnimator:
         leg2.set_zorder(12)
 
     def _prepare_animation_frames(self):
-        self.num_frames = 1000
+        self.num_frames = 100
         self.frames = np.linspace(0, self.max_time, self.num_frames)
         self.animation_interval = int(50 * self.slower_factor)
 
@@ -554,11 +554,13 @@ class DimensionTrajectoryAnimator:
 # Example usage:
 if __name__ == "__main__":
     animator = DimensionTrajectoryAnimator(
-        data_path="/home/yue/Workspace/wos/tmp/6b805274-97a9-425c-b103-2505f5490788_logdata.json",
+        #data_path="/home/yue/Workspace/wos/tmp/6b805274-97a9-425c-b103-2505f5490788_logdata.json",
+        data_path="/home/yue/Workspace/wos/tmp/50ef9dc7-afbc-487b-8b8d-bd4cef397857_logdata.json",
+
         #data_path="/home/yue/Workspace/wos_rt_control_show_case/data/ybot.json",
         space_mode='joint',  # cartesian or joint
         dimension_show=1,    # e.g. joint index=3
-        half_window=1.0,
+        half_window=5.0,
         slower_factor=1.0
     )
     animator.run()
